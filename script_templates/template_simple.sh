@@ -1,7 +1,11 @@
 #!/bin/bash
-
-#   :copyright: (c) 2018 zpeller
-#   :license: GNU GPL v3, see LICENSE for more details.
+#
+# Copyright (c) 2018 Zoltan Peller (zpeller@zzsoft.hu)
+# License GNU GPL v3, see LICENSE for more details.
+#
+# Description
+#
+# TODO
 
 #BASEDIR=/home/zpeller/xxxxxxx
 #INPUTFILE=$BASEDIR/file.xxx.zzz

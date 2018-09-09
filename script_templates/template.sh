@@ -1,9 +1,15 @@
 #!/bin/bash
+#
+# Copyright (c) 2018 Zoltan Peller (zpeller@zzsoft.hu)
+# License GNU GPL v3, see LICENSE for more details.
+#
+# Description
+#
+# TODO
 
-#   :copyright: (c) 2018 zpeller
-#   :license: GNU GPL v3, see LICENSE for more details.
+#set -x 
 
-#BASEDIR=/home/zpeller/xxxxxxx
+#BASEDIR=/home/user/xxxxxxx
 #PARAMFILE=$BASEDIR/file.xxx.zzz
 #LOGFILE=/tmp/`basename $0`.log.$$.$RANDOM
 
@@ -30,17 +36,16 @@ readonly ARGNUM="$#"
 
 case `basename $0` in
 	prog1) 
-		ARGX="argX"
+		OPTX="option1"
 		;;
 	prog2) 
-		ARGX="argY"
+		OPTX="option2"
 		;;
 	*)
-		error_exit "Can't determine $ARGX type from filename"
+		error_exit "Can't determine 'OPTX' from filename"
 		;;
 esac
 
-#set -x 
 while [ "$#" -gt 0 ]
 do
 	case "$1" in
@@ -52,7 +57,7 @@ do
 				optb="$2"; shift ;;
 #		-i|--infile)
 #				shift; break ;;
-		-*) 	error_exit "Invalid option '$1'. Use --help to see the valid options" ;;
+		-*) 	error_exit "Invalid option '$1'" ;;
 		*)		# the input files
 				break;;
 	esac
