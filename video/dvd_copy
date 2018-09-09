@@ -1,0 +1,49 @@
+#!/bin/bash
+#
+#   Copyright (c) 2018 Zoltan Peller (zpeller@zzsoft.hu)
+#   License GNU GPL v3, see LICENSE for more details.
+#
+# Create an iso of a dvd, then write it back to a blank one
+
+function error_exit {
+	echo $*
+	exit 1
+}
+
+basedir=${1:-/tmp}
+dir=$basedir/dvd.`date +%y%m%d.%H%M%S`
+iso=dvd.iso
+
+stime=`date +%s`
+
+mkdir $dir || error_exit "Can't create $dir!"
+cd $dir || error_exit "$dir doesn't exist"
+
+date
+echo "Starting dvdbackup..."
+
+dvdbackup -i /dev/cdrom -M -o . || error_exit "dvdbackup failed"
+eject
+
+date
+# echo "Remove the original, and insert a blank writable dvd disc"
+
+rm -f $iso
+mkisofs -dvd-video -o $iso `ls` || error_exit "mkisofs failed (disk might be full?)"
+echo
+echo "Remove the original, and insert a blank writable dvd disc!"
+echo "Hit Enter, when ready"
+
+read a
+date
+growisofs -dvd-compat -speed=1 -Z /dev/dvd=$iso
+eject
+
+date
+
+etime=`date +%s`
+minutes=$(( (etime-stime)/60 ))
+seconds=$((etime-stime-perc*60))
+
+printf "Ready.\nSpent time: %02d:%02d\n\n" $minutes $seconds
+

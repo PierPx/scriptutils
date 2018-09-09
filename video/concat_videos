@@ -1,0 +1,52 @@
+#!/bin/bash
+#
+# Copyright (c) 2018 Zoltan Peller (zpeller@zzsoft.hu)
+# License GNU GPL v3, see LICENSE for more details.
+#
+# Concatenate videos. Videos have to have the same video and audio 
+# properties (eg. bitrate, codec, etc)
+
+#set -x 
+
+function error_exit {
+	[ ! -z "$1" ] && echo "Error: $*" >&2
+	echo "Usage: `basename $0` [-o|--output_file filename] <input_file1> [input_file2] [...]" >&2
+	exit 1
+}
+
+outfile=""
+	
+while [ "$#" -gt 0 ]
+do
+	case "$1" in
+		-h|--help) 
+				error_exit;;
+		-o|--output_file)
+				outfile="$2"; shift;;
+		-*) 	error_exit "Invalid option '$1'. Use --help to see the valid options" ;;
+		*)		# the input files
+				break;;
+	esac
+	shift
+done
+
+[ -z "$outfile" ] && error_exit "Missing output file"
+[ -f "$outfile" ] && error_exit "Output file already exists: $outfile"
+
+[ "$#" -eq 0 ] && error_exit "Missing input files"
+
+listfile="/tmp/concat_list.$$.$RANDOM"
+rm -f "$listfile"
+
+for i in "$@"
+do 
+	echo "file '`pwd`/$i'" >> "$listfile"
+done
+
+cat "$listfile"
+echo
+
+ffmpeg -f concat -safe 0 -i "$listfile" -c copy "$outfile"
+
+rm -f "$listfile"
+

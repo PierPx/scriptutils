@@ -1,0 +1,111 @@
+#!/bin/bash
+#
+# Copyright (c) 2018 Zoltan Peller (zpeller@zzsoft.hu)
+# License GNU GPL v3, see LICENSE for more details.
+#
+# Encode videos to h265/h264 (create a 'menc2h264' link to 
+# the file for h264)
+
+function error_exit {
+	[ ! -z "$1" ] && echo "Error: $*" >&2
+	echo "Usage: `basename $0` [-b <bitrate k>] [-c crf] [-d output_directory] <input_file1> [input_file2] [...]" >&2
+	exit 1
+}
+	
+# File name
+readonly PROGNAME=$(basename $0)
+# File name, without the extension
+readonly PROGBASENAME=${PROGNAME%.*}
+# File directory
+readonly PROGDIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Arguments
+readonly ARGS="$@"
+# Arguments number
+readonly ARGNUM="$#"
+
+STOPFILE=/tmp/menc.stop
+MAXRATE=8000
+THREADS=6
+fixed_maxrate=0
+outdir="."
+
+case `basename $0` in
+	menc2h264) 
+		VCODEC="libx264"
+		CRF=20
+		;;
+	menc2h265) 
+		VCODEC="libx265"
+		CRF=24
+		;;
+	*)
+		error_exit "Can't determine encoding type from filename"
+		;;
+esac
+
+#set -x 
+while [ "$#" -gt 0 ]
+do
+	case "$1" in
+		-h|--help) 
+				error_exit;;
+		-b|--maxbitrate)
+				fixed_maxrate="$2"; shift;;
+		-c|--crf)
+				CRF="$2"; shift ;;
+		-d|--outdir)
+				outdir="$2"; shift ;;
+#		-i|--infile)
+#				shift; break ;;
+		-*) 	error_exit "Invalid option '$1'. Use --help to see the valid options" ;;
+		*)		# the input files
+				break;;
+	esac
+	shift
+done
+
+[ "$#" -eq 0 ] && error_exit "Missing input files"
+
+
+for i in "$@"
+do 
+	if [ -f "$STOPFILE" ]; then
+		echo "Stop file ($STOPFILE) found, exiting..."
+		rm -f "$STOPFILE"
+		exit 0
+	fi
+
+	echo $i
+
+	if ffmpeg -i "$i" 2>&1 | grep ac3 >/dev/null; then
+		audcparams="-acodec copy"
+	else
+		audcparams="-acodec ac3 -ab 192k -ar 48000 -ac 2"
+	fi
+
+	if [ ! -z "$fixed_maxrate" -a "$fixed_maxrate" -ne 0 ]; then
+		maxrate=$fixed_maxrate
+	else
+		bitrate=`ffmpeg -i "$i" 2>&1 | grep bitrate | sed 's/^.*bitrate/bitrate/' | awk '{print $2}'`
+		echo "bitrate: $bitrate"
+		if [ ! -z "$bitrate" -a "$bitrate" -ne 0 -a "$bitrate" -le 4000 ]; then
+			maxrate=$((bitrate*2))
+		else
+			maxrate=$MAXRATE
+		fi
+	fi
+
+	vidcparams="-vf scale=min(iw\,1920):-1 -vcodec $VCODEC -crf $CRF -maxrate ${maxrate}k -preset medium"
+	# vidcparams="-vf scale=min(iw\,1920):-1 -vcodec $VCODEC -crf $CRF -maxrate ${maxrate}k -bufsize 1835k -preset slow -r 25 "
+	nname=`basename "$i" | sed 's/\.\([^.]*\)$/.mp4/'`
+	pname="$outdir/.part.$nname"
+	nname="$outdir/$nname"
+	# [ -f "$nname" ] && nname="$i".mp4
+	[ -f "$nname" ] && echo "Outfile $nname exists, skipping" && continue
+	[ -f "$pname" ] && rm -f "$pname"
+	echo ffmpeg -i "$i" -threads $THREADS $vidcparams $audcparams "$pname"
+	ffmpeg -i "$i" -threads 6 $vidcparams $audcparams "$pname" && mv -i "$pname" "$nname"
+	[ -f "$nname" ] && touch -r "$i" "$nname"
+	echo
+	echo
+done

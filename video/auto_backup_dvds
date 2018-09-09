@@ -1,0 +1,50 @@
+#!/bin/bash
+#
+# Copyright (c) 2018 Zoltan Peller (zpeller@zzsoft.hu)
+# License GNU GPL v3, see LICENSE for more details.
+#
+# Waits for a disc insert event, and if it's a new dvd, starts
+# dvd2mediastore, which creates a backup iso image of the disc
+#
+# TODO: error handling
+
+lastlabel=""
+lastuuid=""
+
+echo "Waiting for disc event..."
+
+udevadm monitor --udev --property -s block | \
+while read line; do
+	echo "$line" | grep -q 'UDEV.* change' || continue
+	echo "Disc change event"
+	while [ -z "$USEC_INITIALIZED" ]; do
+		read line
+		if echo "$line" | egrep -q '^[A-Z_][A-Z_]*='; then
+			modline=`echo "$line" | sed -e 's/=/="/' -e 's/$/"/'`
+	   		eval "$modline"
+		fi
+	done
+
+	echo "Variables loaded"
+	echo "ID_FS_TYPE=$ID_FS_TYPE"
+	echo "ID_FS_LABEL=$ID_FS_LABEL"
+	echo "ID_FS_UUID=$ID_FS_UUID"
+
+	if [ "$ID_FS_TYPE" == "udf" ]; then
+		if [ "$ID_FS_UUID" != "$lastuuid" -o "$ID_FS_LABEL" != "$lastlabel" ]; then
+			echo "New dvd, backing up..."
+			if /home/zpeller/bin/dvd2mediastore ; then
+				lastlabel="$ID_FS_LABEL"
+				lastuuid="$ID_FS_UUID"
+			else
+				echo "Backup failed, try to reload!"
+			fi
+		fi
+	fi
+
+	ID_FS_TYPE=""
+	ID_FS_LABEL=""
+	ID_FS_UUID=""
+	USEC_INITIALIZED=""
+	echo "Waiting for disc event..."
+done

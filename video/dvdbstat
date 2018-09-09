@@ -1,0 +1,40 @@
+#!/bin/bash
+#
+# Copyright (c) 2018 Zoltan Peller (zpeller@zzsoft.hu)
+# License GNU GPL v3, see LICENSE for more details.
+#
+# Give progress statistics while running dvd2mediastore
+# Eg: watch -n 5 dvdbstat
+
+basedir=/data/movies/workdir
+
+wd=`ls -rt -1 "$basedir"|tail -1`
+
+echo
+ls "$basedir/$wd"
+echo
+
+ls -al "$basedir/$wd"/*/VIDEO_TS | tail -5
+
+size=`du -sb "$basedir/$wd" | awk '{print $1}'`
+size=$((size/1024/1024))
+
+tsize=`cat /sys/block/sr0/size`
+tsize=$((tsize/2/1024))
+
+pct=$((100*size/tsize))
+
+tcreat=`stat -c %Y "$basedir/$wd"`
+tcurr=`date +%s`
+
+
+if [ $pct -gt 0 ]; then
+	testend=$(( tcreat + (tcurr-tcreat)*100/pct ))
+	ds=`date -d @${testend} +%H:%M:%S`
+else
+	ds="?"
+	testend="?"
+fi
+
+printf "\nTotal: %d/%d MB (%d%%) EE: %s\n" $size $tsize $pct "$ds"
+

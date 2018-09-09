@@ -1,0 +1,12 @@
+#!/bin/bash
+#
+# Copyright (c) 2018 Zoltan Peller (zpeller@zzsoft.hu)
+# License GNU GPL v3, see LICENSE for more details.
+#
+# An example to add permanent (hardcoded into picture) subtitle to a movie
+# Usually it's better to add it as switchable subtitle
+
+mencoder movie.avi -oac copy -ovc lavc -sub movie.srt -ass -subcp ISO-8859-2 -ass-styles /home/zpeller/.config/smplayer/styles.ass -o movie_with_sub.avi 
+
+ffmpeg -i movie.srt movie.ass
+ffmpeg -i movie.avi -vf ass=movie.ass movie_sub.avi

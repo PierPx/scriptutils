@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Apply gamma correction on a pdf containing only jpeg or ppm images
+# Default behavoiur is to make it darker
+
+#set -x
+
+function error_exit {
+	[ ! -z "$*" ] && echo "Error: $*"
+	echo "Usage: pdfcorr <pdf file> [gamma (default: -0.3)]"
+	exit 1
+}
+
+[ -z "$1" ] && error_exit "Missing parameter"
+infile="$1"
+indir=`dirname "$infile"`
+gamma=${2:-0.3}
+ofroot=`basename "$infile"`_pdfcorr
+
+cd "$indir" || error_exit "Can't change to input dir"
+
+pdfimages -j `basename "$infile"` "$ofroot" || error_exit "Can't extract images ('pdfimages' failed)"
+
+if [ -f "$ofroot"-000.jpg ]; then
+	for ipic in "$ofroot"*.jpg
+	do
+		opic=`basename "$ipic" .jpg`-gc.jpg
+		convert -gamma $gamma -quality 75 "$ipic" "$opic" || error_exit "JPG gamma correction failed ('convert' failed)"
+	done
+else
+	for ipic in "$ofroot"*.ppm
+	do
+		opic=`basename "$ipic" .ppm`-gc.jpg
+		convert -gamma $gamma "$ipic" "$opic" || error_exit "PPM gamma correction failed ('convert' failed)"
+	done
+fi
+
+convert "$ofroot"*-gc.jpg "`basename $infile .pdf`-dk.pdf" || error_exit "jpg->pdf concat failed ('convert' failed)"
+
+rm -f *_pdfcorr-*.jpg *_pdfcorr-*.ppm
+

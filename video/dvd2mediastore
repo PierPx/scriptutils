@@ -1,0 +1,53 @@
+#!/bin/bash
+#
+# Copyright (c) 2018 Zoltan Peller (zpeller@zzsoft.hu)
+# License GNU GPL v3, see LICENSE for more details.
+#
+# Creates a backup iso image of the inserted disc. Best used with auto_backup_dvds.
+#
+# TODO: error handling not complete
+#       option processing
+
+function error_exit {
+	echo $*
+	exit 1
+}
+
+basedir=${1:-/data/movies/workdir}
+vdir="/data/movies/iso"
+
+dir=$basedir/dvd.`date +%y%m%d.%H%M%S`
+stime=`date +%s`
+
+mkdir $dir || error_exit "Can't create $dir!"
+cd $dir || error_exit "$dir doesn't exist"
+
+# dvdbackup -I -i /dev/dvd
+# date
+# echo "Starting backup..."
+
+script -e -f -q -c 'dvdbackup -I -i /dev/dvd; date; echo "Starting backup..."; dvdbackup -i /dev/dvd -M -o .' "$dir/dvdbackup.log" || error_exit "dvdbackup failed"
+eject
+
+moviename="`ls | grep -v dvdbackup.log`"
+iso="$vdir/$moviename.iso"
+ext=""
+
+while [ -f "$iso" ]; do
+	ext="X$ext"
+	iso="$vdir/$moviename $ext.iso"
+done
+
+echo "Read finished, generating iso: $moviename"
+# rm -f "$iso"
+genisoimage -dvd-video -quiet -o "$iso" "$moviename" || error_exit "mkisogrow failed (disc full?)"
+echo "Generating finished"
+ls -al "$iso"
+
+grep 'Error' "$dir/dvdbackup.log" && echo "Some cracks/reads failed, check DVD manually!"
+
+exit 0
+
+#handbrake-gtk -d "$iso"
+
+#growisofs -dvd-compat -speed=1 -Z /dev/dvd=$iso

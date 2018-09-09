@@ -1,0 +1,94 @@
+#!/bin/bash
+#
+# Copyright (c) 2018 Zoltan Peller (zpeller@zzsoft.hu)
+# License GNU GPL v3, see LICENSE for more details.
+#
+# Search JSON for "keyword" and "grep" the block attached
+# Works on stdin if no input file given
+#
+# The script is line based, so pretty print json before (eg.
+# with json_pp which is part of the perl package on Debian)
+
+###################################################################
+# no configurable parameters below
+#
+
+#set -x 
+
+function error_exit {
+	[ ! -z "$1" ] && echo "Error: $*" >&2
+	echo "Usage: `basename $0` <-k keyword> [-do open_delim_char (def:'{') ] [-dc close_delim_char (def:'}') ] [input_files]" >&2
+	exit 1
+}
+	
+delim_open='{'
+delim_close='}'
+keyword=''
+
+while [ "$#" -gt 0 ]
+do
+	case "$1" in
+		-h|--help) 
+				error_exit;;
+		-do|--delim_open)
+				delim_open="$2"; shift;;
+		-dc|--delim_close)
+				delim_close="$2"; shift ;;
+		-k|--keyword)
+				keyword="$2"; shift ;;
+#		-i|--infile)
+#				shift; break ;;
+		-*) 	error_exit "Invalid option '$1'. Use --help to see the valid options" ;;
+		*)		# the input files
+				break;;
+	esac
+	shift
+done
+
+[ -z "$keyword" ] && error_exit "Missing keyword"
+
+function process_input {
+	awk 'BEGIN {
+			in_block=0;
+			delim_cnt=0;
+		}
+
+		func count_delimiters(line) {
+			split(line, chars, "");
+			for (i=1; i <= length(line); i++) {
+				if (chars[i] == "'$delim_open'") {
+					delim_cnt++;
+				} else if (chars[i] == "'$delim_close'") {
+					delim_cnt--;
+				}
+			}
+		}
+
+		in_block==1 { 
+			print; 
+			count_delimiters($0);
+			if (delim_cnt == 0) { 
+				in_block=0; 
+			}
+		}
+
+		/'$keyword'/ { 
+			print;
+			count_delimiters($0);
+			if (delim_cnt > 0) { 
+				in_block=1; 
+			}
+		}
+		' $1
+}
+
+if [ "$#" -eq 0 ]; then
+	process_input
+else
+	for i in "$@"
+	do 
+		echo $i
+		process_input "$i"
+	done
+fi
+
